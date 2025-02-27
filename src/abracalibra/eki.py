@@ -142,8 +142,6 @@ class EnsembleKalmanInversion(Calibration):
         self.__params = torch.cat((self.__params, next_params.unsqueeze(0)), dim=0)
         return self.transform_params(next_params)
 
-
-
     @property
     def current_time(self):
         return self.times[self.iteration]

@@ -1,6 +1,6 @@
 import torch
 import inspect
-from typing import Callable, Literal
+from typing import Callable, Literal, Optional
 
 
 class ForwardModel:
@@ -10,6 +10,7 @@ class ForwardModel:
         vectorized: bool = False,
         params_as: Literal["vector", "args", "kwargs"] = "kwargs",
         auto_broadcast_data: bool = True,
+        out_shape: Optional[torch.Size] = None,
         **bind_data,
     ):
         self.__call_count = 0
@@ -20,6 +21,7 @@ class ForwardModel:
         self.__bind_data = self.__get_bind(**bind_data)
         self.__param_names = list(inspect.signature(function).parameters.keys())
         self.__auto_broadcast_data = auto_broadcast_data
+        self.__out_shape = out_shape
         for k in bind_data.keys():
             try:
                 self.__param_names.remove(k)
@@ -88,6 +90,12 @@ class ForwardModel:
         )
 
     @property
+    def out_shape(self):
+        if self.__out_shape:
+            return self.__out_shape
+        return torch.Size([-1])
+
+    @property
     def call_count(self):
         return self.__call_count
 
@@ -127,7 +135,7 @@ class ForwardModel:
                 params = x.reshape(-1, x.shape[-1])
                 return (
                     torch.stack([self.__function(*p) for p in params])
-                    .view(*x.shape[:-1], -1)
+                    .view(*x.shape[:-1], *self.out_shape)
                     .squeeze(-1)
                 )
 
@@ -147,17 +155,17 @@ class ForwardModel:
                                     self.__function(**p, **data)
                                     for data in self.bound_data_nonvec_generator
                                 ]
-                            ).view(*self.data_shape, -1)
+                            ).view(*self.data_shape, *self.out_shape)
                         )
                     return (
                         torch.stack(total_data)
-                        .view(*x.shape[:-1], *self.data_shape, -1)
+                        .view(*x.shape[:-1], *self.data_shape, *self.out_shape)
                         .squeeze(-1)
                     )
                 else:
                     return (
                         torch.stack([self.__function(**p) for p in param_dicts])
-                        .view(*x.shape[:-1], -1)
+                        .view(*x.shape[:-1], *self.out_shape)
                         .squeeze(-1)
                     )
 

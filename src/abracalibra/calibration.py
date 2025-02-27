@@ -68,6 +68,18 @@ class Calibration(ABC):
         self.observables = observables
         self.forward = forward
 
+        #TODO: probably change this in future to let Forward output a Distribution directly if it produces one.
+        # can use that as a training point for the calibration 
+        self.output_mc_batchshape = None # output provides multiple samples for the same input 
+
+        if self.forward.out_shape:
+            if self.number_of_observables != self.forward.out_shape[-1]:
+                raise ValueError(
+                    "The number of observables must match the output shape of the forward model"
+                )
+            self.output_mc_batchshape = self.forward.out_shape[:-1]
+            
+
     def sample_prior(
         self, param_size: Union[torch.Size, int] = 1, labeled: bool = False
     ):

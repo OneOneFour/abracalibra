@@ -97,9 +97,12 @@ class HistoryMatchingBase(ApproxBayesianMethod, ABC):
         )
         for i, batch in enumerate(torch.split(flt_theta, 1000)):
             print(f"Working on batch {i}", end="\r", flush=True)
-            pred_y = self.emulators[wave](batch)
+            emulator = self.emulators[wave]
+            likelihood = self.emulators[wave].likelihood 
+            pred_y = likelihood(emulator(batch))
             imp = self.summary(pred_y)
             batches.append(imp)
+        
         imp = torch.cat(batches, dim=0)
         if theta_org_shape:
             return imp.view(*theta_org_shape)
@@ -135,9 +138,15 @@ class HistoryMatchingBase(ApproxBayesianMethod, ABC):
             self.__params = torch.empty(
                 (nwaves, self.ensemble_size, self.number_of_parameters)
             )
-            self.__results = torch.empty(
-                (nwaves, self.ensemble_size, self.number_of_observables)
-            )
+            if self.output_mc_batchshape:
+                self.__results = torch.empty(
+                    (nwaves, self.ensemble_size, *self.output_mc_batchshape, self.number_of_observables)
+                )
+            else:
+                self.__results = torch.empty(
+                    (nwaves, self.ensemble_size, self.number_of_observables)
+                )
+
         for wave in range(self.current_wave, nwaves):
             # Reset this __just in case__ it was changed by mistake.
             self.__current_wave = wave
@@ -403,7 +412,12 @@ class HistoryMatchingSingleTaskGP(HistoryMatchingBase):
 
 class HistoryMatchingMultiTask(HistoryMatchingBase):
     def make_emulator(self, parameters, observations):
-        parameters = parameters.view(-1, self.number_of_parameters)
+        if self.output_mc_batchshape:
+            target_shape = torch.Size((*parameters.shape[:-1], *self.output_mc_batchshape, self.number_of_parameters))
+            parameters = parameters.unsqueeze(-2).expand(*target_shape)
+            parameters = parameters.reshape(-1, self.number_of_parameters)
+        else:
+            parameters = parameters.view(-1, self.number_of_parameters)
         observations = observations.view(-1, self.number_of_observables)
         likelihood = MultitaskGaussianLikelihood(
             num_tasks=self.number_of_observables, has_task_noise=False

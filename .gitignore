@@ -1,5 +1,4 @@
 env/
-examples/
 .vscode/
 .pytest_cache/
 figures/

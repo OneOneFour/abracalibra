@@ -72,7 +72,7 @@ class Calibration(ABC):
         # can use that as a training point for the calibration 
         self.output_mc_batchshape = None # output provides multiple samples for the same input 
 
-        if self.forward.out_shape:
+        if self.forward and self.forward.out_shape:
             if self.number_of_observables != self.forward.out_shape[-1]:
                 raise ValueError(
                     "The number of observables must match the output shape of the forward model"

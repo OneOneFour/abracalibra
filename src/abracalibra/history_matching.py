@@ -98,8 +98,8 @@ class HistoryMatchingBase(ApproxBayesianMethod, ABC):
         for i, batch in enumerate(torch.split(flt_theta, 1000)):
             print(f"Working on batch {i}", end="\r", flush=True)
             emulator = self.emulators[wave]
-            likelihood = self.emulators[wave].likelihood 
-            pred_y = likelihood(emulator(batch))
+            # likelihood = self.emulators[wave].likelihood 
+            pred_y = emulator(batch)
             imp = self.summary(pred_y)
             batches.append(imp)
         

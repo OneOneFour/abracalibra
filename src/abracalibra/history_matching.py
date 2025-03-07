@@ -84,19 +84,21 @@ class HistoryMatchingBase(ApproxBayesianMethod, ABC):
             self.step(results, wave)
 
     def implausibility(
-        self, theta: torch.Tensor, wave: Optional[int] = None
+        self, theta: torch.Tensor, wave: Optional[int] = None,verbose:bool=False
     ) -> torch.Tensor:
         if wave is None:
             wave = self.current_wave
         theta_org_shape = theta.shape[:-1]
         flt_theta = theta.view(-1, self.number_of_parameters)
         batches = []
-        print(f"torch.no_grad() active: {not torch.is_grad_enabled()}")
-        print(
-            f"gpytorch.settings.fast_pred_var active: {gpytorch.settings.fast_pred_var.on()}"
-        )
+        if verbose:
+            print(f"torch.no_grad() active: {not torch.is_grad_enabled()}")
+            print(
+                f"gpytorch.settings.fast_pred_var active: {gpytorch.settings.fast_pred_var.on()}"
+            )
         for i, batch in enumerate(torch.split(flt_theta, 1000)):
-            print(f"Working on batch {i}", end="\r", flush=True)
+            if verbose:
+                print(f"Working on batch {i}", end="\r", flush=True)
             emulator = self.emulators[wave]
             # likelihood = self.emulators[wave].likelihood 
             pred_y = emulator(batch)

@@ -38,7 +38,7 @@ class ODESystem(nn.Module, ABC):
         
         pass
 
-    def forward(self, x0, T, dt):
+    def forward(self, T, dt,x0):
         """
         Integrate the ODE system from x0 to T with time step dt
         Returns a tensor of shape (len(t),3) where t is the time points
@@ -111,12 +111,12 @@ class Lorenz96TwoLevel(ODESystem):
             * (torch.roll(y, 1, dims=-1) - torch.roll(y, -2, dims=-1))
             * torch.roll(y, -1, dims=-1)
             - self.c * y
-            + (self.h * self.c / self.b) * torch.sum(x.repeat_interleave(J), dim=-1)
+            + (self.h * self.c / self.b) * x.repeat_interleave(J,dim=-1)
         )
 
         return torch.cat([xdot, ydot], dim=-1)
 
-    def forward(self, x0, y0, T, dt):
+    def forward(self, T, dt,x0,y0):
         """
         Inputs:
         x0: Initial condition for the x variables, shape (batch_shape, N)
@@ -124,30 +124,30 @@ class Lorenz96TwoLevel(ODESystem):
         T: Final time
         dt: Time step
         """
-        t = torch.arange(0, T, dt,dtype=x0.dtype)
+        time = torch.arange(0, T, dt,dtype=x0.dtype)
         batch_shape = x0.shape[:-1]
-        if y0.shape[:-1] != batch_shape:
+        if y0.shape[:-2] != batch_shape:
             raise ValueError("The batch shapes of x0 and y0 must match")
         N = x0.shape[-1]
-        if y0.shape[-1] % N != 0:
+        if y0.shape[-2] != N:
             raise ValueError(
                 "The number of y variables must be a multiple of the number of x variables"
             )
-        J = int(y0.shape[-1] // N)
-        xy0 = torch.cat([x0, y0], dim=-1)  # xy0 has dimension (batch_shape, N+J*N)
+        J = int(y0.shape[-1])
+        xy0 = torch.cat([x0, y0.view(-1,N*J)], dim=-1)  # xy0 has dimension (batch_shape, N+J*N)
         xy = torch.cat(
             [
                 xy0.unsqueeze(-2),
-                torch.zeros((*batch_shape, len(t) - 1, x0.shape[-1])).double(),
+                torch.zeros((*batch_shape, len(time) - 1, xy0.shape[-1])).double(),
             ],
             dim=-2,
         )
 
-        for i, t in enumerate(t[:-1]):
-            xy[..., i + 1, :] = rk4_step(self.ode_x, t, xy[..., i, :], dt, N, J)
+        for i, t in enumerate(time[:-1]):
+            xy[..., i + 1, :] = rk4_step(self.ode, t, xy[..., i, :], dt, N, J)
         x = xy[..., :N]
-        y = xy[..., N:].view(N,J)
-        return x, y
+        y = xy[..., N:].view(*batch_shape,len(time),N,J)
+        return x,y
 
 class TimeAveragedFeatures(nn.Module):
     def __init__(self, base:ODESystem, spinup:int,degree:int = 2,*args, **kwargs):
@@ -156,6 +156,9 @@ class TimeAveragedFeatures(nn.Module):
         self.spinup = spinup
         self.degree = degree 
 
-    def forward(self,x0,T,dt):
-        x = self.base(x0,T,dt)
-        return torch.mean(get_polynomial_features(x[...,int(self.spinup/dt):,:],degree=self.degree),dim=-2)
+    def forward(self,T,dt,*args):
+        x = self.base(T,dt,*args)
+        if isinstance(x,tuple):
+            return tuple(map(lambda v: torch.mean(get_polynomial_features(v[...,int(self.spinup/dt):,:],degree=self.degree),dim=-2),x))
+        else:
+            return torch.mean(get_polynomial_features(x[...,int(self.spinup/dt):,:],degree=self.degree),dim=-2)

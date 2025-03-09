@@ -67,7 +67,7 @@ class EnsembleKalmanInversion(Calibration):
             raise ValueError("Forward model must be provided")
 
         for params in self.eki_iter(n_steps):
-            results = self.forward(params)
+            results = self.forward(params).to(params.dtype)
             next_params = self.step(results)
 
         return next_params.mean(dim=0)
@@ -128,7 +128,7 @@ class EnsembleKalmanInversion(Calibration):
     def step(self, results):
         if self.__params.shape[0] > self.iteration + 1:
             raise RuntimeError("Already invoked step for the current iteration")
-        params = self.__params[self.iteration]  # n x d
+        params = self.__params[self.iteration] # n x d
 
         ens_residual = results - results.mean(dim=0)  # n x o 
         Cff = (ens_residual).T@(ens_residual)/self.ensemble_size

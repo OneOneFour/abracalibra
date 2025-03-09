@@ -84,6 +84,22 @@ class Lorenz96OneLevel(ODESystem):
             + self.F
         )
 
+class Lorenz96OneLevelScaled(ODESystem):
+    def __init__(self,F,adv,diff, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.F = F
+        self.adv = adv
+        self.diff = diff
+
+
+    def ode(self,t,r):
+        return (
+            self.adv*(torch.roll(r, -1, dims=-1) - torch.roll(r, 2, dims=-1))
+            * torch.roll(r, 1, dims=-1)
+            - r*self.diff
+            + self.F
+        )
+
 
 class Lorenz96TwoLevel(ODESystem):
     def __init__(self, F, b, h, c, *args, **kwargs):

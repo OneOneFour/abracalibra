@@ -12,7 +12,7 @@ def transform_covar(covar,ntasks,npoints):
 
 def lazy_task_covar(lazy_covar,ntasks,npoints):
     task_covar = torch.zeros(npoints,ntasks,ntasks)
-    for i in range(ntasks):
+    for i in range(npoints):
         task_covar[i] = lazy_covar[i*ntasks:(i+1)*ntasks,i*ntasks:(i+1)*ntasks].evaluate()
     return task_covar
 

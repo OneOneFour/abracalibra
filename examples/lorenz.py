@@ -85,18 +85,22 @@ class Lorenz96OneLevel(ODESystem):
         )
 
 class Lorenz96OneLevelScaled(ODESystem):
-    def __init__(self,F,adv,diff, *args, **kwargs):
+    def __init__(self,F,diag_linear_terms, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.F = F
-        self.adv = adv
-        self.diff = diff
+        self.diag_linear_terms = diag_linear_terms
+
+
+
+    def linear_terms(self,r):
+        base = torch.diagflat(torch.ones(r.shape[-1])*-1)
 
 
     def ode(self,t,r):
         return (
             self.adv*(torch.roll(r, -1, dims=-1) - torch.roll(r, 2, dims=-1))
             * torch.roll(r, 1, dims=-1)
-            - r*self.diff
+            - r@self.linear_terms(r)
             + self.F
         )
 

@@ -28,7 +28,7 @@ def ln_norm(y: torch.Tensor, z: torch.Tensor, n: int) -> torch.Tensor:
 def implausibility_univariate_distr(
     y: Union[Normal, MultivariateNormal, GPyMultivariateNormal], z: Normal
 ):
-    return torch.abs(y.mean - z.mean) / torch.sqrt(y.variance + z.variance)
+    return torch.abs(y.mean - z.mean) / torch.sqrt(y.variance+ z.variance.squeeze())
 
 
 def batched_implausibility_univariate_distr(

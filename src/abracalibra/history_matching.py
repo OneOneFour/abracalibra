@@ -67,13 +67,13 @@ class HistoryMatchingBase(ApproxBayesianMethod, ABC):
         return self.__results[: self.current_wave]
 
     def calibrate(
-        self, nwaves: int, early_stop_threshold: float = -1, verbose: bool = False
+        self, nwaves: int, early_stop_threshold: float = -1, verbose: bool = False,sanity_check=None
     ):
         if self.forward is None:
             raise RuntimeError("Forward model must be provided to calibrate directly")
 
         for wave, params in self.hm_iter(
-            nwaves, early_stop_threshold=early_stop_threshold, verbose=verbose
+            nwaves, early_stop_threshold=early_stop_threshold, verbose=verbose,sanity_check=sanity_check
         ):
             if verbose:
                 print(f"Working on wave {wave}")
@@ -112,7 +112,7 @@ class HistoryMatchingBase(ApproxBayesianMethod, ABC):
             return imp
 
     def hm_iter(
-        self, nwaves: int, early_stop_threshold: float = -1, verbose: bool = False
+        self, nwaves: int, early_stop_threshold: float = -1, verbose: bool = False,sanity_check=None
     ):
         """
         Perform history matching iterations.
@@ -154,6 +154,12 @@ class HistoryMatchingBase(ApproxBayesianMethod, ABC):
             self.__current_wave = wave
             # if self.check_if_converged(early_stop_threshold,verbose=verbose):
             #     break
+            if sanity_check is not None and wave > 1: 
+                ## Check if implausibility is working
+                imp = self.implausibility(sanity_check.view(-1,self.number_of_parameters),wave=wave-1)
+                if (imp > self.implausibility_cutoff).any():
+                    print("SANITY CHECK FAILED")
+                    break
             wave_params = self.sample(wave, verbose=verbose)
             self.__params[wave] = wave_params
             yield wave, wave_params
